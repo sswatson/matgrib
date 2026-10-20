@@ -1,0 +1,8 @@
+# Rendered example and render scratch
+/example.pdf
+/example.html
+/example_files/
+/.quarto/
+.matgrib-cache/
+*.asv
+tests/out/

@@ -1,0 +1,6 @@
+title: matgrib — native MATLAB figures for Quarto
+version: 0.1.0
+quarto-required: ">=1.9.0"
+contributes:
+  engines:
+    - path: matlab-engine.js

@@ -1,0 +1,147 @@
+---
+title: "matgrib example"
+subtitle: "MATLAB figures drawn natively by Gribouille (PDF) and Observable Plot (HTML)"
+engine: matlab
+format:
+  typst:
+    fontsize: 10.5pt
+    mainfont: "TeX Gyre Pagella"
+    margin: {x: 2.2cm, y: 2.2cm}
+  html:
+    theme: cosmo
+---
+
+```{matlab}
+%| echo: false
+rng(7);
+dates = datetime(2024, 1, 2) + caldays(0:364)';
+strategies = ["Momentum"; "Carry"; "Value"];
+drift = [0.0005 0.0003 0.0001]; vol = [0.012 0.007 0.009];
+region = repmat(["US"; "EU"], 183, 1);
+T = table();
+for k = 1:3
+    r = drift(k) + vol(k) * randn(365, 1);
+    T = [T; table(dates, repmat(strategies(k), 365, 1), r, 100 * exp(cumsum(r)), ...
+        region(1:365), ...
+        'VariableNames', {'date', 'strategy', 'ret', 'nav', 'region'})]; %#ok<AGROW>
+end
+```
+
+## The grammar-of-graphics DSL
+
+`matgrib.gg` takes a table and aesthetic mappings, and methods add layers.
+Statistics are computed in MATLAB. Leaving the expression without a
+semicolon displays it: in this document it becomes a native figure, and at
+the MATLAB prompt it opens a preview.
+
+```{matlab}
+%| label: fig-nav
+%| fig-cap: "Strategy NAVs with a loess trend."
+matgrib.gg(T, x="date", y="nav", colour="strategy") ...
+    .line(alpha=0.9) ...
+    .smooth(method="loess", span=0.3) ...
+    .hline(100) ...
+    .labs(title="Strategy NAV", subtitle="Rebased to 100 on 2 Jan 2024", y="Index level", x="", colour="") ...
+    .theme(legend="bottom")
+```
+
+Small multiples come from `facet`:
+
+```{matlab}
+%| label: fig-dist
+%| fig-cap: "Daily return distributions by strategy."
+matgrib.gg(T, x="ret", fill="strategy") ...
+    .histogram(bins=40, alpha=0.8) ...
+    .facet("strategy", ncol=3) ...
+    .scaleX(format="percent:1", breaks=[-0.03 0 0.03]) ...
+    .labs(x="Daily return", y="Days") ...
+    .theme(legend="none", aspect=0.8)
+```
+
+Boxplots, flipped:
+
+```{matlab}
+%| label: fig-box
+%| fig-cap: "Return dispersion by strategy and region."
+matgrib.gg(T, x="strategy", y="ret", fill="region") ...
+    .boxplot() ...
+    .coordFlip() ...
+    .scaleY(format="percent:1") ...
+    .scaleFill(values=["#c6dbef" "#fdd0a2"]) ...
+    .labs(x="", y="Daily return", fill="Region")
+```
+
+## Summaries, intervals and labels
+
+```{matlab}
+%| label: fig-summary
+%| fig-cap: "Mean daily return with 95% intervals (left) and annualised volatility (right)."
+S = groupsummary(T, "strategy", {"mean", "std"}, "ret");
+S.lo = S.mean_ret - 1.96 * S.std_ret ./ sqrt(S.GroupCount);
+S.hi = S.mean_ret + 1.96 * S.std_ret ./ sqrt(S.GroupCount);
+S.vol = S.std_ret * sqrt(252);
+S.lab = compose("%.1f%%", 100 * S.vol);
+left = matgrib.gg(S, x="strategy", y="mean_ret", ymin="lo", ymax="hi", colour="strategy") ...
+    .pointrange() ...
+    .hline(0, linetype="solid", alpha=0.5) ...
+    .scaleY(format="percent:2") ...
+    .labs(x="", y="Mean daily return") ...
+    .theme(legend="none");
+right = matgrib.gg(S, x="strategy", y="vol", fill="strategy") ...
+    .col(width=0.6) ...
+    .text(label="lab", y=S.vol + 0.012) ...
+    .scaleY(format="percent") ...
+    .labs(x="", y="Annualised volatility") ...
+    .theme(legend="none");
+matgrib.arrange(left, right, ncol=2)
+```
+
+A correlation heatmap from tiles and text:
+
+```{matlab}
+%| label: fig-corr
+%| fig-cap: "Correlation of simulated factor returns."
+F = randn(500, 5) * chol(0.5 * eye(5) + 0.5 * (ones(5) .* (rand(5) > 0.6) + eye(5)) / 2);
+C = corrcoef(F);
+names = ["Mkt" "Size" "Value" "Mom" "Qual"];
+[i, j] = meshgrid(1:5);
+H = table(names(i(:))', names(j(:))', C(:), compose("%.2f", C(:)), ...
+    'VariableNames', {'a', 'b', 'rho', 'txt'});
+matgrib.gg(H, x="a", y="b", fill="rho") ...
+    .tile() ...
+    .text(label="txt") ...
+    .scaleFill(palette="rdbu", midpoint=0) ...
+    .scaleX(levels=names).scaleY(levels=fliplr(names)) ...
+    .labs(x="", y="", fill="ρ") ...
+    .theme(aspect=0.75)
+```
+
+## Lots of data
+
+Point layers above `maxPoints` (default 2500) are sampled reproducibly.
+Lines above `maxPath` (1500 per series) keep each bucket's highs and lows.
+The render log records both.
+
+```{matlab}
+%| label: fig-big
+%| fig-cap: "100 000 points, drawn as a 2500-point sample with a linear fit on all of them."
+x = randn(1e5, 1); y = 0.5 * x + randn(1e5, 1);
+matgrib.gg(x=x, y=y).point(alpha=0.25, size=3).smooth(method="lm", colour="ink") ...
+    .labs(x="Signal", y="Forward return")
+```
+
+## Plain MATLAB figures still work
+
+Ordinary plotting code is translated as well, and anything the translator
+can't handle falls back to a vector image.
+
+```{matlab}
+%| label: fig-plain
+%| fig-cap: "A tiledlayout with plain plot / bar calls."
+t = tiledlayout(1, 2);
+nexttile
+plot(dates, cumsum(randn(365, 2)), 'LineWidth', 1); legend('A', 'B', 'Location', 'northwest')
+title('Random walks')
+nexttile
+bar(categorical({'Q1','Q2','Q3','Q4'}), [3 4; 5 2; 6 5; 4 7]); title('Trades (k)')
+```

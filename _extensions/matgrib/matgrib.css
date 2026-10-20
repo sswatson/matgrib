@@ -1,0 +1,15 @@
+.matgrib { width: 100%; margin: 0.5rem 0; --matgrib-bg: var(--bs-body-bg, white); }
+.matgrib-grid { display: grid; align-items: start; }
+.matgrib-title { text-align: center; font-weight: 600; }
+.matgrib-subtitle { text-align: center; opacity: 0.75; font-size: 0.9em; }
+.matgrib-title + .matgrib-grid, .matgrib-subtitle + .matgrib-grid { margin-top: 0.4rem; }
+.matgrib-caption { text-align: right; opacity: 0.7; font-size: 0.8em; margin-top: 0.2rem; }
+.matgrib-panel { display: flex; gap: 8px; }
+.matgrib-legend-top, .matgrib-legend-bottom { flex-direction: column; }
+.matgrib figure > .matgrib-keys { margin: 0.2rem 0 0.4rem; }
+.matgrib-legend-right .matgrib-keys, .matgrib-legend-left .matgrib-keys { align-self: center; flex: 0 0 auto; max-width: 110px; }
+.matgrib-keys { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; }
+.matgrib figure { margin: 0; text-align: left; }
+.matgrib svg { max-width: 100%; height: auto; color: inherit; }
+.matgrib h2, .matgrib h3 { margin: 0 0 0.2rem 0; font-size: 0.95rem; font-weight: 600; border: none; }
+.matgrib h3 { font-weight: 400; opacity: 0.75; font-size: 0.85rem; }
